@@ -5,7 +5,17 @@ using Hugging Face's BLIP model.
 """
 
 import streamlit as st
-from transformers import BlipProcessor, BlipForConditionalGeneration
+import sys
+import subprocess
+
+# Check and install transformers if needed
+try:
+    from transformers import BlipProcessor, BlipForConditionalGeneration
+except ImportError:
+    st.info("Installing required packages... This may take a moment.")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "transformers==4.35.2"])
+    from transformers import BlipProcessor, BlipForConditionalGeneration
+
 from PIL import Image
 import requests
 from io import BytesIO
@@ -27,12 +37,13 @@ def load_model():
     Returns processor and model objects.
     """
     try:
-        processor = BlipProcessor.from_pretrained(
-            "Salesforce/blip-image-captioning-base"
-        )
-        model = BlipForConditionalGeneration.from_pretrained(
-            "Salesforce/blip-image-captioning-base"
-        )
+        with st.spinner("Loading AI model... (First time may take a few minutes)"):
+            processor = BlipProcessor.from_pretrained(
+                "Salesforce/blip-image-captioning-base"
+            )
+            model = BlipForConditionalGeneration.from_pretrained(
+                "Salesforce/blip-image-captioning-base"
+            )
         return processor, model
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
@@ -49,10 +60,6 @@ def validate_and_resize_image(image, max_size=512):
         Resized PIL Image or None if invalid
     """
     try:
-        # Check if valid image
-        image.verify()
-        image = Image.open(image.fp) if hasattr(image, 'fp') else image
-        
         # Convert to RGB if needed
         if image.mode != 'RGB':
             image = image.convert('RGB')
@@ -207,6 +214,7 @@ def main():
     
     # Initialize image variable
     image = None
+    image_loaded = False
     
     # Main area - conditional rendering based on input method
     if input_method == "Upload Image":
@@ -222,6 +230,7 @@ def main():
                 st.error("File too large. Please upload an image under 5MB.")
             else:
                 image = Image.open(uploaded_file)
+                image_loaded = True
     
     elif input_method == "Capture from Camera":
         st.subheader("📷 Capture from Camera")
@@ -229,6 +238,7 @@ def main():
         
         if camera_image is not None:
             image = Image.open(camera_image)
+            image_loaded = True
     
     else:  # Enter URL
         st.subheader("🔗 Enter Image URL")
@@ -241,11 +251,13 @@ def main():
             if st.button("Fetch Image"):
                 with st.spinner("Fetching image..."):
                     image = get_image_from_url(url)
+                    if image is not None:
+                        image_loaded = True
     
     # Process and display results
     st.divider()
     
-    if image is not None:
+    if image_loaded and image is not None:
         # Validate and resize
         image = validate_and_resize_image(image)
         

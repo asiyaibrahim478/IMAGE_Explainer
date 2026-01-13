@@ -1,5 +1,7 @@
 streamlit==1.29.0
 transformers==4.35.2
 torch==2.1.1
+torchvision==0.16.1
 pillow==10.1.0
 requests==2.31.0
+accelerate==0.25.0
